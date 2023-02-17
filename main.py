@@ -6,7 +6,9 @@ from aiogram.dispatcher.filters.state import State, Dispatcher, StatesGroup
 from aiogram import types
 import button
 from aiogram.utils import executor
+from aiogram.types import InlineKeyboardMarkup, KeyboardButton, InlineKeyboardButton
 import os
+
 
 def spaceIsFree(position):
     if board[position] == '__':
@@ -125,18 +127,33 @@ board = {1: '__', 2: '__', 3: '__',
 player = 'O'
 bot1 = 'X'
 
-global firstComputerMove
-firstComputerMove = True
 
 storage = MemoryStorage()
 
 bot = Bot(token=os.getenv("TOKEN"))
 dp = Dispatcher(bot, storage=storage)
 
+win_draw = False
 
-class FSMAdmin(StatesGroup):
-    answer = State()
-    answer2 = State()
+def board_zeroing_out():
+    global board
+    board = {1: '__', 2: '__', 3: '__',
+         4: '__', 5: '__', 6: '__',
+         7: '__', 8: '__', 9: '__'}
+
+async def create_buttons():
+    kb = InlineKeyboardMarkup(resize_keyboard=True)
+    b1 = InlineKeyboardButton(f"{board[1]}", callback_data="1")
+    b2 = InlineKeyboardButton(f"{board[2]}", callback_data="2")
+    b3 = InlineKeyboardButton(f"{board[3]}", callback_data="3")
+    b4 = InlineKeyboardButton(f"{board[4]}", callback_data="4")
+    b5 = InlineKeyboardButton(f"{board[5]}", callback_data="5")
+    b6 = InlineKeyboardButton(f"{board[6]}", callback_data="6")
+    b7 = InlineKeyboardButton(f"{board[7]}", callback_data="7")
+    b8 = InlineKeyboardButton(f"{board[8]}", callback_data="8")
+    b9 = InlineKeyboardButton(f"{board[9]}", callback_data="9")
+    kb.add(b1, b2, b3, b4, b5, b6, b7, b8, b9)
+    return kb
 
 
 @dp.message_handler(commands=["start"])
@@ -144,150 +161,66 @@ async def admin(message: types.Message):
     await bot.send_message(message.from_user.id, "Hello, this is a bot with which you can play tic tac toe", reply_markup=button.kb)
 
 
-@dp.message_handler(state=None)
+@dp.message_handler()
 async def cm_start(message: types.Message, state: FSMContext):
+    global win_draw
     if message.text == "Bot go first":
         compMove()
-        await bot.send_message(message.from_user.id, "The game board is numbered:\n1|2|3\n4|5|6\n7|8|9")
-        await bot.send_message(message.from_user.id, "You play for the 'O'")
-        await bot.send_message(message.from_user.id, 
-                               board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                               board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-        await bot.send_message(message.from_user.id, "Number on board please", reply_markup=button.kb2)
-        await FSMAdmin.answer.set()
+        win_draw = False
+        await bot.send_message(message.from_user.id, "You play for 'O'", reply_markup=button.kb2)
+        await bot.send_message(message.from_user.id, "Board", reply_markup=await create_buttons())
     elif message.text == "Go first":
-        await bot.send_message(message.from_user.id, "The game board is numbered:\n1|2|3\n4|5|6\n7|8|9")
-        await bot.send_message(message.from_user.id, "You play for the 'O'")
-        await bot.send_message(message.from_user.id, "Number on board please", reply_markup=button.kb2)
-        await FSMAdmin.answer2.set()
+        win_draw = False
+        await bot.send_message(message.from_user.id, "You play for 'O'", reply_markup=button.kb2)
+        await bot.send_message(message.from_user.id, "Board", reply_markup=await create_buttons())
+    elif message.text == "Stop game":
+        await bot.send_message(message.from_user.id, "Ок((", reply_markup=button.kb2)
     else:
         await bot.send_message(message.from_user.id, "Do you want play to game tic tac toe?, click on board")
 
-@dp.message_handler(state=FSMAdmin.answer2)
-async def load_chapter2(message: types.Message, state: FSMContext):
-    global board
-    try:
-        if message.text == "Stop game":
-            await bot.send_message(message.from_user.id, "Ок(", reply_markup=button.kb)
-            board = {1: '__', 2: '__', 3: '__',
-                4: '__', 5: '__', 6: '__',
-                7: '__', 8: '__', 9: '__'}
-            await state.finish()
-        elif spaceIsFree(int(message.text)):
-            insertLetter(player, int(message.text))
+
+@dp.callback_query_handler()
+async def game(call: types.CallbackQuery):
+    global win_draw
+    if not win_draw:
+        if spaceIsFree(int(call.data)):
+            insertLetter("O", int(call.data))
             if checkWhichMarkWon("O"):
-                await bot.send_message(message.from_user.id, "'O' win!!!", reply_markup=button.kb)
-                await bot.send_message(message.from_user.id,
-                                        board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                        board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                board = {1: '__', 2: '__', 3: '__',
-                    4: '__', 5: '__', 6: '__',
-                    7: '__', 8: '__', 9: '__'}
-                await state.finish()
-
+                win_draw = True
+                await call.message.answer("You won!! (Have you played for 'O')", reply_markup=button.kb)
+                board_zeroing_out()
+            elif checkWhichMarkWon("X"):
+                win_draw = True
+                await call.message.answer("Bot won!! (Have bot played for 'X')", reply_markup=button.kb)
+                board_zeroing_out()
             elif checkDraw():
-                await bot.send_message(message.from_user.id, "Draw!!!", reply_markup=button.kb)
-                await bot.send_message(message.from_user.id,
-                                        board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                        board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                board = {1: '__', 2: '__', 3: '__',
-                4: '__', 5: '__', 6: '__',
-                7: '__', 8: '__', 9: '__'}
-                await state.finish()
-            compMove()    
-            if checkWhichMarkWon("X"):
-                await bot.send_message(message.from_user.id, "'X' win!!!", reply_markup=button.kb)
-                await bot.send_message(message.from_user.id,
-                                        board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                        board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                board = {1: '__', 2: '__', 3: '__',
-                4: '__', 5: '__', 6: '__',
-                7: '__', 8: '__', 9: '__'}
-                await state.finish()
-
-            elif checkDraw():
-                await bot.send_message(message.from_user.id, "Draw!!!, reply_markup=button.kb")
-                await bot.send_message(message.from_user.id,
-                                        board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                        board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                board = {1: '__', 2: '__', 3: '__',
-                4: '__', 5: '__', 6: '__',
-                7: '__', 8: '__', 9: '__'}
-                await state.finish()
+                win_draw = True
+                await call.message.answer("Draw!!", reply_markup=button.kb)
+                board_zeroing_out()
             else:
-                await bot.send_message(message.from_user.id,
-                                    board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                    board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                await bot.send_message(message.from_user.id, "Number on board please")
+                await call.message.answer("Board", reply_markup=await create_buttons())
+                compMove()
+                if checkWhichMarkWon("O"):
+                    win_draw = True
+                    await call.message.answer("Board", reply_markup=await create_buttons())
+                    await call.message.answer("You won!! (Have you played for 'O')", reply_markup=button.kb)
+                    board_zeroing_out()
+                elif checkWhichMarkWon("X"):
+                    win_draw = True
+                    await call.message.answer("Board", reply_markup=await create_buttons())
+                    await call.message.answer("Bot won!! (Have bot played for 'X')", reply_markup=button.kb)
+                    board_zeroing_out()
+                elif checkDraw():
+                    win_draw = True
+                    await call.message.answer("Board", reply_markup=await create_buttons())
+                    await call.message.answer("Draw!!", reply_markup=button.kb)
+                    board_zeroing_out()
+                else:
+                    await call.message.answer("Board", reply_markup=await create_buttons())
         else:
-            await bot.send_message(message.from_user.id, "Space is not free!!")
-    except Exception:
-        await bot.send_message(message.from_user.id, "It is not number(. Send number please")
+            await call.message.answer("Space is not free!!!")
 
-
-
-@dp.message_handler(state=FSMAdmin.answer)
-async def load_chapter(message: types.Message, state: FSMContext):
-    global board
-    try:
-        if message.text == "Stop game":
-            await bot.send_message(message.from_user.id, "Ок(", reply_markup=button.kb)
-            board = {1: '__', 2: '__', 3: '__',
-                4: '__', 5: '__', 6: '__',
-                7: '__', 8: '__', 9: '__'}
-            await state.finish()
-        elif spaceIsFree(int(message.text)):
-            insertLetter(player, int(message.text))
-            if checkWhichMarkWon("O"):
-                await bot.send_message(message.from_user.id, "'O' win!!!", reply_markup=button.kb)
-                await bot.send_message(message.from_user.id,
-                                    board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                    board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                board = {1: '__', 2: '__', 3: '__',
-                4: '__', 5: '__', 6: '__',
-                7: '__', 8: '__', 9: '__'}
-                await state.finish()
-
-            elif checkDraw():
-                await bot.send_message(message.from_user.id, "Draw!!!", reply_markup=button.kb)
-                await bot.send_message(message.from_user.id,
-                                    board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                    board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                board = {1: '__', 2: '__', 3: '__',
-                4: '__', 5: '__', 6: '__',
-                7: '__', 8: '__', 9: '__'}
-                await state.finish()
-            compMove()    
-            if checkWhichMarkWon("X"):
-                await bot.send_message(message.from_user.id, "'X' win!!!", reply_markup=button.kb)
-                await bot.send_message(message.from_user.id,
-                                    board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                    board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                board = {1: '__', 2: '__', 3: '__',
-                4: '__', 5: '__', 6: '__',
-                7: '__', 8: '__', 9: '__'}
-                await state.finish()
-            
-            elif checkDraw():
-                await bot.send_message(message.from_user.id, "Draw!!!", reply_markup=button.kb)
-                await bot.send_message(message.from_user.id,
-                                    board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                    board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                board = {1: '__', 2: '__', 3: '__',
-                4: '__', 5: '__', 6: '__',
-                7: '__', 8: '__', 9: '__'}
-                await state.finish()
-
-            else:
-                await bot.send_message(message.from_user.id,
-                                    board[1] + '|' + board[2] + '|' + board[3] + "\n" + board[4] + '|' + board[5] + '|' +
-                                    board[6] + "\n" + board[7] + '|' + board[8] + '|' + board[9])
-                await bot.send_message(message.from_user.id, "Number on board please")
-        else:
-            await bot.send_message(message.from_user.id, "Space is not free!!")
-    except Exception:
-        await bot.send_message(message.from_user.id, "It is not number(. Send number please")
-    
+        
 
 
 executor.start_polling(dp, skip_updates=True)
