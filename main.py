@@ -10,6 +10,7 @@ from aiogram.types import InlineKeyboardMarkup, KeyboardButton, InlineKeyboardBu
 import os
 
 
+
 def spaceIsFree(position):
     if board[position] == '__':
         return True
@@ -174,7 +175,7 @@ async def cm_start(message: types.Message, state: FSMContext):
         await bot.send_message(message.from_user.id, "You play for 'O'", reply_markup=button.kb2)
         await bot.send_message(message.from_user.id, "Board", reply_markup=await create_buttons())
     elif message.text == "Stop game":
-        await bot.send_message(message.from_user.id, "Ок((", reply_markup=button.kb2)
+        await bot.send_message(message.from_user.id, "Ок((", reply_markup=button.kb)
     else:
         await bot.send_message(message.from_user.id, "Do you want play to game tic tac toe?, click on board")
 
@@ -221,6 +222,5 @@ async def game(call: types.CallbackQuery):
             await call.message.answer("Space is not free!!!")
 
         
-
 
 executor.start_polling(dp, skip_updates=True)
