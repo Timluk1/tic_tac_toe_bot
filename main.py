@@ -9,8 +9,6 @@ from aiogram.utils import executor
 from aiogram.types import InlineKeyboardMarkup, KeyboardButton, InlineKeyboardButton
 import os
 
-
-
 def spaceIsFree(position):
     if board[position] == '__':
         return True
@@ -158,12 +156,12 @@ async def create_buttons():
 
 
 @dp.message_handler(commands=["start"])
-async def admin(message: types.Message):
+async def start(message: types.Message):
     await bot.send_message(message.from_user.id, "Hello, this is a bot with which you can play tic tac toe", reply_markup=button.kb)
 
 
 @dp.message_handler()
-async def cm_start(message: types.Message, state: FSMContext):
+async def start_the_game(message: types.Message, state: FSMContext):
     global win_draw
     if message.text == "Bot go first":
         compMove()
@@ -175,52 +173,50 @@ async def cm_start(message: types.Message, state: FSMContext):
         await bot.send_message(message.from_user.id, "You play for 'O'", reply_markup=button.kb2)
         await bot.send_message(message.from_user.id, "Board", reply_markup=await create_buttons())
     elif message.text == "Stop game":
-        await bot.send_message(message.from_user.id, "Ок((", reply_markup=button.kb)
+        await bot.send_message(message.from_user.id, "Ок((", reply_markup=button.kb2)
     else:
         await bot.send_message(message.from_user.id, "Do you want play to game tic tac toe?, click on board")
 
 
 @dp.callback_query_handler()
-async def game(call: types.CallbackQuery):
+async def game(query: types.CallbackQuery):
     global win_draw
     if not win_draw:
-        if spaceIsFree(int(call.data)):
-            insertLetter("O", int(call.data))
+        if spaceIsFree(int(query.data)):
+            insertLetter("O", int(query.data))
             if checkWhichMarkWon("O"):
                 win_draw = True
-                await call.message.answer("You won!! (Have you played for 'O')", reply_markup=button.kb)
+                await query.message.answer("You won!! (Have you played for 'O')", reply_markup=button.kb)
                 board_zeroing_out()
             elif checkWhichMarkWon("X"):
                 win_draw = True
-                await call.message.answer("Bot won!! (Have bot played for 'X')", reply_markup=button.kb)
+                await query.message.answer("Bot won!! (Have bot played for 'X')", reply_markup=button.kb)
                 board_zeroing_out()
             elif checkDraw():
                 win_draw = True
-                await call.message.answer("Draw!!", reply_markup=button.kb)
+                await query.message.answer("Draw!!", reply_markup=button.kb)
                 board_zeroing_out()
             else:
-                await call.message.answer("Board", reply_markup=await create_buttons())
+                await query.message.edit_reply_markup(await create_buttons())
                 compMove()
                 if checkWhichMarkWon("O"):
                     win_draw = True
-                    await call.message.answer("Board", reply_markup=await create_buttons())
-                    await call.message.answer("You won!! (Have you played for 'O')", reply_markup=button.kb)
+                    await query.message.edit_reply_markup(await create_buttons())
+                    await query.message.answer("You won!! (Have you played for 'O')", reply_markup=button.kb)
                     board_zeroing_out()
                 elif checkWhichMarkWon("X"):
                     win_draw = True
-                    await call.message.answer("Board", reply_markup=await create_buttons())
-                    await call.message.answer("Bot won!! (Have bot played for 'X')", reply_markup=button.kb)
+                    await query.message.edit_reply_markup(await create_buttons())
+                    await query.message.answer("Bot won!! (Have bot played for 'X')", reply_markup=button.kb)
                     board_zeroing_out()
                 elif checkDraw():
                     win_draw = True
-                    await call.message.answer("Board", reply_markup=await create_buttons())
-                    await call.message.answer("Draw!!", reply_markup=button.kb)
+                    await query.message.edit_reply_markup(await create_buttons())
+                    await query.message.answer("Draw!!", reply_markup=button.kb)
                     board_zeroing_out()
                 else:
-                    await call.message.answer("Board", reply_markup=await create_buttons())
+                    await query.message.edit_reply_markup(await create_buttons())
         else:
-            await call.message.answer("Space is not free!!!")
-
-        
+            await query.message.answer("Space is not free!!!")
 
 executor.start_polling(dp, skip_updates=True)
